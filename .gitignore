@@ -46,3 +46,5 @@ next-env.d.ts
 # extra pdfs at root of public
 public/parrot_adoption_website_revised.pdf
 public/Adoption Application form.pdf
+
+.vercel

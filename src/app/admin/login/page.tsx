@@ -7,8 +7,8 @@ import { Feather, Lock, User, ArrowLeft, AlertCircle, ShieldCheck } from "lucide
 
 export default function AdminLoginPage() {
   const router = useRouter();
-  const [username, setUsername] = useState("admin");
-  const [password, setPassword] = useState("parrot123");
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 

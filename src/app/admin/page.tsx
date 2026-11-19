@@ -50,6 +50,7 @@ export default function AdminPage() {
   const [activeTab, setActiveTab] = useState<AdminTab>("overview");
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
 
   // Data states
   const [parrots, setParrots] = useState<Parrot[]>([]);
@@ -116,8 +117,23 @@ export default function AdminPage() {
   };
 
   useEffect(() => {
-    fetchData();
-  }, []);
+    const checkAuthAndLoad = async () => {
+      try {
+        const authRes = await fetch("/api/admin/auth");
+        const authData = await authRes.json();
+        if (!authData.authenticated) {
+          router.replace("/admin/login");
+          return;
+        }
+        setIsAuthenticated(true);
+        fetchData();
+      } catch (err) {
+        console.error("Auth check failed:", err);
+        router.replace("/admin/login");
+      }
+    };
+    checkAuthAndLoad();
+  }, [router]);
 
   // Update default email body when template or recipient changes
   const applyEmailTemplate = (templateId: string, name?: string, parrot?: string) => {
@@ -386,6 +402,19 @@ export default function AdminPage() {
       badge: emails.length,
     },
   ];
+
+  if (isAuthenticated === null || !isAuthenticated) {
+    return (
+      <div className="min-h-screen bg-cream-100 flex flex-col items-center justify-center p-4">
+        <div className="w-16 h-16 rounded-full overflow-hidden border-2 border-forest-800/40 bg-white mb-4 shadow-md animate-pulse">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/logo.png" alt="Feathered Haven" className="w-full h-full object-cover" />
+        </div>
+        <p className="text-sm font-bold text-forest-900">Verifying administrator session...</p>
+        <p className="text-xs text-forest-700/70 mt-1">Redirecting to login if unauthenticated</p>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-cream-100 flex flex-col md:flex-row font-sans text-forest-900">

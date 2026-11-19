@@ -2,8 +2,16 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Feather & Home | Companion Parrot Rescue & Adoption",
+  title: "Feathered Haven | Parrot Rescue & Adoption",
   description: "Every parrot deserves a home that understands. Thoughtful adoption placements built around each bird's individual needs.",
+  icons: {
+    icon: [
+      { url: "/icon.png" },
+      { url: "/logo.png" },
+    ],
+    apple: "/apple-icon.png",
+    shortcut: "/icon.png",
+  },
 };
 
 export default function RootLayout({
