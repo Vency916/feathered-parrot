@@ -39,3 +39,10 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# raw source assets (already copied to public/)
+/contents/
+
+# extra pdfs at root of public
+public/parrot_adoption_website_revised.pdf
+public/Adoption Application form.pdf
