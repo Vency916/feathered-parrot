@@ -9,10 +9,10 @@ export const EMAIL_TEMPLATES: EmailTemplate[] = [
   {
     id: "received",
     name: "Application Received & Under Review",
-    subject: "AuraParrot: We Received Your Adoption Application!",
+    subject: "Feathered Haven: We Received Your Adoption Application!",
     body: (name?: string, parrot?: string) => `Dear ${name || "Applicant"},
 
-Thank you for your interest in adopting from AuraParrot Sanctuary${parrot ? ` for ${parrot}` : ""}!
+Thank you for your interest in adopting from Feathered Haven Parrot Rescue${parrot ? ` for ${parrot}` : ""}!
 
 We have received your completed adoption form and our avian care committee is currently reviewing your home environment and experience details. 
 
@@ -24,13 +24,13 @@ Next Steps:
 If you have any questions in the meantime or need to update your application, please reply directly to this email.
 
 Warm regards,
-The AuraParrot Adoption Committee
-adoptions@auraparrot.org`,
+The Feathered Haven Adoption Committee
+adoptions@fhpra.org`,
   },
   {
     id: "interview",
     name: "Schedule Meet & Greet / Virtual Home Check",
-    subject: "AuraParrot: Invitation to Schedule Your Adoption Meet & Greet",
+    subject: "Feathered Haven: Invitation to Schedule Your Adoption Meet & Greet",
     body: (name?: string, parrot?: string) => `Dear ${name || "Applicant"},
 
 Great news! Your preliminary adoption application${parrot ? ` for ${parrot}` : ""} has been pre-approved!
@@ -42,12 +42,12 @@ Please let us know your availability over the upcoming weekend (Saturday or Sund
 Looking forward to welcoming you!
 
 Best regards,
-AuraParrot Sanctuary Team`,
+Feathered Haven Rescue Team`,
   },
   {
     id: "approved",
     name: "Adoption Approved - Congratulations!",
-    subject: "AuraParrot: Congratulations! Your Parrot Adoption is Approved!",
+    subject: "Feathered Haven: Congratulations! Your Parrot Adoption is Approved!",
     body: (name?: string, parrot?: string) => `Dear ${name || "Applicant"},
 
 We are thrilled to inform you that your application to adopt ${parrot || "your companion bird"} has been fully APPROVED!
@@ -64,12 +64,12 @@ Please reply to this email to coordinate your bird's homecoming date!
 Congratulations and welcome to the flock!
 
 Warmly,
-The AuraParrot Sanctuary Flock`,
+The Feathered Haven Sanctuary Flock`,
   },
   {
     id: "clarification",
     name: "Home Environment & Aviary Photos Needed",
-    subject: "AuraParrot: Quick Follow-up Regarding Your Adoption Application",
+    subject: "Feathered Haven: Quick Follow-up Regarding Your Adoption Application",
     body: (name?: string, parrot?: string) => `Dear ${name || "Applicant"},
 
 Thank you for submitting your adoption application${parrot ? ` for ${parrot}` : ""}.
@@ -81,6 +81,6 @@ You can reply directly to this email and attach the photos.
 Thank you for your cooperation in ensuring the highest safety standard for our feathered companions!
 
 Sincerely,
-AuraParrot Sanctuary Team`,
+Feathered Haven Rescue Team`,
   },
 ];
