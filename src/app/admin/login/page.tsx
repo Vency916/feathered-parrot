@@ -85,7 +85,7 @@ export default function AdminLoginPage() {
                   required
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
-                  placeholder="admin"
+                  placeholder="Enter username"
                   className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-cream-100 border border-cream-300 text-sm text-forest-900 focus:outline-none focus:ring-2 focus:ring-forest-600 focus:bg-cream-50"
                 />
               </div>
@@ -102,7 +102,7 @@ export default function AdminLoginPage() {
                   required
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  placeholder="••••••••"
+                  placeholder="Enter password"
                   className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-cream-100 border border-cream-300 text-sm text-forest-900 focus:outline-none focus:ring-2 focus:ring-forest-600 focus:bg-cream-50"
                 />
               </div>
@@ -117,20 +117,6 @@ export default function AdminLoginPage() {
               <span>{loading ? "Authenticating..." : "Sign In to Admin Panel"}</span>
             </button>
           </form>
-
-          {/* Demo Credentials hint */}
-          <div className="bg-forest-50 p-4 rounded-xl border border-forest-200 text-xs text-forest-850 space-y-1">
-            <span className="font-bold block text-forest-900">Default Demo Credentials:</span>
-            <p className="flex justify-between">
-              <span>Username:</span> <code className="font-mono font-bold text-forest-900">admin</code>
-            </p>
-            <p className="flex justify-between">
-              <span>Password:</span> <code className="font-mono font-bold text-forest-900">parrot123</code>
-            </p>
-            <p className="text-[11px] text-forest-700/70 pt-1">
-              (You can customize these via <code>ADMIN_USERNAME</code> & <code>ADMIN_PASSWORD</code> environment variables in Vercel)
-            </p>
-          </div>
         </div>
       </div>
     </div>
