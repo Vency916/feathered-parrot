@@ -229,31 +229,6 @@ export default function AdminPage() {
     }
   };
 
-  // Simulate Inbound Email Test
-  const handleSimulateReceivedEmail = async () => {
-    try {
-      const res = await fetch("/api/admin/received-emails", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          fromName: "Sarah Jenkins",
-          fromEmail: "sarah.jenkins@example.com",
-          toEmail: "adoptions@fhpra.org",
-          subject: "Adoption inquiry for Rio (Macaw) & flight room details",
-          message: "Hello! I am very interested in adopting Rio. I have a dedicated 20x15ft flight room with non-toxic pine perches and full spectrum avian lighting. Please let me know the next steps for a meet-and-greet!\n\nBest,\nSarah Jenkins\n(555) 789-0123\nSeattle, WA",
-          source: "Adoption Inquiry",
-          category: "Adoption Inquiry",
-        }),
-      });
-      if (res.ok) {
-        const data = await res.json();
-        setReceivedEmails((prev) => [data.email, ...prev]);
-      }
-    } catch (err) {
-      console.error("Failed to simulate email:", err);
-    }
-  };
-
   // Handle Send Email
   const handleSendEmail = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -1422,23 +1397,15 @@ export default function AdminPage() {
 
                       <div className="flex items-center gap-2">
                         <button
-                          onClick={handleSimulateReceivedEmail}
-                          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-cream-100 hover:bg-cream-200 text-forest-800 text-xs font-semibold border border-cream-300 transition-colors cursor-pointer"
-                          title="Simulate an incoming email for testing"
-                        >
-                          <Plus className="w-3.5 h-3.5 text-forest-600" />
-                          <span>Simulate Inbound Test</span>
-                        </button>
-
-                        <button
                           onClick={async () => {
                             const res = await fetch("/api/admin/received-emails");
                             if (res.ok) setReceivedEmails(await res.json());
                           }}
-                          className="p-2 rounded-xl bg-cream-100 hover:bg-cream-200 text-forest-800 text-xs border border-cream-300 transition-colors cursor-pointer"
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-cream-100 hover:bg-cream-200 text-forest-800 text-xs font-semibold border border-cream-300 transition-colors cursor-pointer"
                           title="Refresh Inbox"
                         >
                           <RefreshCw className="w-3.5 h-3.5" />
+                          <span>Refresh</span>
                         </button>
                       </div>
                     </div>
@@ -1467,17 +1434,10 @@ export default function AdminPage() {
                           return (
                             <div className="p-12 text-center space-y-3">
                               <Inbox className="w-12 h-12 text-forest-300 mx-auto" />
-                              <h3 className="text-sm font-bold text-forest-900">No messages found</h3>
+                              <h3 className="text-sm font-bold text-forest-900">No messages in inbox</h3>
                               <p className="text-xs text-forest-700/70 max-w-sm mx-auto">
-                                No received messages match your current filter. Incoming messages from website visitors or email inboxes will show up here.
+                                No messages match your current filter. Incoming messages from website visitors and email inquiries will appear here automatically.
                               </p>
-                              <button
-                                onClick={handleSimulateReceivedEmail}
-                                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full bg-forest-850 text-cream-50 text-xs font-bold cursor-pointer hover:bg-forest-900"
-                              >
-                                <Plus className="w-3.5 h-3.5" />
-                                <span>Create a Test Inquiry</span>
-                              </button>
                             </div>
                           );
                         }

@@ -173,46 +173,10 @@ const initialApplications: AdoptionApplication[] = [
 ];
 
 // Seed Sent Emails
-const initialEmails: SentEmailLog[] = [
-  {
-    id: "mail-1",
-    recipientEmail: "marcus.sterling@example.com",
-    recipientName: "Marcus Sterling",
-    subject: "Feathered Haven: We Received Your Adoption Application",
-    message: "Dear Marcus,\n\nThank you for reaching out to Feathered Haven. Our adoption team is reviewing your housing details and experience. We will be in touch shortly!\n\nWarm regards,\nFeathered Haven Team",
-    templateUsed: "Application Received",
-    sentAt: new Date(Date.now() - 3600000 * 24).toISOString(),
-    status: "Delivered",
-  },
-];
+const initialEmails: SentEmailLog[] = [];
 
 // Seed Received Emails
-const initialReceivedEmails: ReceivedEmail[] = [
-  {
-    id: "inbox-1",
-    fromEmail: "elena.rostova@example.com",
-    fromName: "Elena Rostova",
-    toEmail: "adoptions@fhpra.org",
-    subject: "Inquiring about Barnaby (Cockatoo) & temperament",
-    message: "Hello Feathered Haven team,\n\nI saw Barnaby on your website and fell in love with his personality description! I have 8 years experience caring for large birds and have an insulated outdoor aviary plus custom indoor perches.\n\nCould you let me know if he gets along well with female caregivers, and what his current daily routine is like?\n\nThank you so much,\nElena Rostova\n(555) 234-5678\nPortland, OR",
-    receivedAt: new Date(Date.now() - 3600000 * 3).toISOString(),
-    status: "Unread",
-    source: "Adoption Inquiry",
-    category: "Adoption Inquiry",
-  },
-  {
-    id: "inbox-2",
-    fromEmail: "david.chen@example.com",
-    fromName: "David Chen",
-    toEmail: "info@fhpra.org",
-    subject: "Pellet feed and aviary toy donation for the sanctuary",
-    message: "Hi there,\n\nWe would like to donate three 20lb bags of Harrison's Organic High Potency pellets and several handmade foraging wooden toys to the sanctuary.\n\nWhere is the best shipping address or drop-off point for these supplies?\n\nWarm regards,\nDavid Chen",
-    receivedAt: new Date(Date.now() - 3600000 * 18).toISOString(),
-    status: "Read",
-    source: "Contact Form",
-    category: "Donations",
-  },
-];
+const initialReceivedEmails: ReceivedEmail[] = [];
 
 // Global in-memory storage for serverless runtime resilience
 declare global {
@@ -231,17 +195,16 @@ if (!globalThis.__parrotDataStore) {
     parrots: [...initialParrots],
     slots: [...initialSlots],
     applications: [...initialApplications],
-    emails: [...initialEmails],
-    receivedEmails: [...initialReceivedEmails],
+    emails: [],
+    receivedEmails: [],
   };
 } else {
   // Update slots and parrots with the real bird images if still on old placeholders
   globalThis.__parrotDataStore.parrots = [...initialParrots];
   globalThis.__parrotDataStore.slots = [...initialSlots];
   globalThis.__parrotDataStore.applications = [...initialApplications];
-  if (!globalThis.__parrotDataStore.receivedEmails) {
-    globalThis.__parrotDataStore.receivedEmails = [...initialReceivedEmails];
-  }
+  globalThis.__parrotDataStore.emails = [];
+  globalThis.__parrotDataStore.receivedEmails = [];
 }
 
 export const dataStore = globalThis.__parrotDataStore;
@@ -348,7 +311,7 @@ export async function logSentEmail(email: Omit<SentEmailLog, "id" | "sentAt">): 
 // Received Emails Helpers
 export async function getReceivedEmails(): Promise<ReceivedEmail[]> {
   if (!dataStore.receivedEmails) {
-    dataStore.receivedEmails = [...initialReceivedEmails];
+    dataStore.receivedEmails = [];
   }
   return dataStore.receivedEmails;
 }
@@ -357,7 +320,7 @@ export async function logReceivedEmail(
   email: Omit<ReceivedEmail, "id" | "receivedAt">
 ): Promise<ReceivedEmail> {
   if (!dataStore.receivedEmails) {
-    dataStore.receivedEmails = [...initialReceivedEmails];
+    dataStore.receivedEmails = [];
   }
   const record: ReceivedEmail = {
     ...email,
