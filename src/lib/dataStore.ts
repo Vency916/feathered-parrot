@@ -1,4 +1,5 @@
 import { Parrot, AdoptionApplication, HomepageSlot, SentEmailLog, ReceivedEmail } from "./types";
+import { supabase } from "./supabaseClient";
 
 // Seed Parrots using the actual uploaded bird photos
 const initialParrots: Parrot[] = [
@@ -209,26 +210,171 @@ if (!globalThis.__parrotDataStore) {
 
 export const dataStore = globalThis.__parrotDataStore;
 
-// Parrots Data Helpers
+// ==========================================
+// PARROTS DATA HELPERS
+// ==========================================
 export async function getParrots(): Promise<Parrot[]> {
+  if (supabase) {
+    try {
+      const { data, error } = await supabase
+        .from("parrots")
+        .select("*")
+        .order("created_at", { ascending: false });
+
+      if (!error && data && data.length > 0) {
+        return data.map((d) => ({
+          id: d.id,
+          name: d.name,
+          species: d.species,
+          age: d.age || "",
+          gender: d.gender || "Unknown",
+          status: d.status || "Available",
+          description: d.description || "",
+          personality: d.personality || [],
+          imageUrl: d.image_url || "/birds/bird-1.jpeg",
+          featuredOnHome: Boolean(d.featured_on_home),
+          healthStatus: d.health_status,
+          diet: d.diet,
+          lifespan: d.lifespan,
+          createdAt: d.created_at,
+        }));
+      }
+    } catch (err) {
+      console.warn("Supabase getParrots fallback:", err);
+    }
+  }
   return dataStore.parrots;
 }
 
 export async function getParrotById(id: string): Promise<Parrot | undefined> {
+  if (supabase) {
+    try {
+      const { data, error } = await supabase.from("parrots").select("*").eq("id", id).single();
+      if (!error && data) {
+        return {
+          id: data.id,
+          name: data.name,
+          species: data.species,
+          age: data.age || "",
+          gender: data.gender || "Unknown",
+          status: data.status || "Available",
+          description: data.description || "",
+          personality: data.personality || [],
+          imageUrl: data.image_url || "/birds/bird-1.jpeg",
+          featuredOnHome: Boolean(data.featured_on_home),
+          healthStatus: data.health_status,
+          diet: data.diet,
+          lifespan: data.lifespan,
+          createdAt: data.created_at,
+        };
+      }
+    } catch (err) {
+      console.warn("Supabase getParrotById fallback:", err);
+    }
+  }
   return dataStore.parrots.find((p) => p.id === id);
 }
 
 export async function addParrot(parrot: Omit<Parrot, "id" | "createdAt">): Promise<Parrot> {
+  const newId = `parrot-${Date.now()}`;
+  const now = new Date().toISOString();
+
+  if (supabase) {
+    try {
+      const { data, error } = await supabase
+        .from("parrots")
+        .insert({
+          id: newId,
+          name: parrot.name,
+          species: parrot.species,
+          age: parrot.age,
+          gender: parrot.gender,
+          status: parrot.status,
+          description: parrot.description,
+          personality: parrot.personality,
+          image_url: parrot.imageUrl,
+          featured_on_home: parrot.featuredOnHome,
+          health_status: parrot.healthStatus,
+          diet: parrot.diet,
+          lifespan: parrot.lifespan,
+          created_at: now,
+        })
+        .select()
+        .single();
+
+      if (!error && data) {
+        const created: Parrot = {
+          ...parrot,
+          id: data.id,
+          createdAt: data.created_at,
+        };
+        dataStore.parrots.unshift(created);
+        return created;
+      }
+    } catch (err) {
+      console.warn("Supabase addParrot fallback:", err);
+    }
+  }
+
   const newParrot: Parrot = {
     ...parrot,
-    id: `parrot-${Date.now()}`,
-    createdAt: new Date().toISOString(),
+    id: newId,
+    createdAt: now,
   };
   dataStore.parrots.unshift(newParrot);
   return newParrot;
 }
 
 export async function updateParrot(id: string, updates: Partial<Parrot>): Promise<Parrot | null> {
+  if (supabase) {
+    try {
+      const dbUpdates: Record<string, unknown> = {};
+      if (updates.name !== undefined) dbUpdates.name = updates.name;
+      if (updates.species !== undefined) dbUpdates.species = updates.species;
+      if (updates.age !== undefined) dbUpdates.age = updates.age;
+      if (updates.gender !== undefined) dbUpdates.gender = updates.gender;
+      if (updates.status !== undefined) dbUpdates.status = updates.status;
+      if (updates.description !== undefined) dbUpdates.description = updates.description;
+      if (updates.personality !== undefined) dbUpdates.personality = updates.personality;
+      if (updates.imageUrl !== undefined) dbUpdates.image_url = updates.imageUrl;
+      if (updates.featuredOnHome !== undefined) dbUpdates.featured_on_home = updates.featuredOnHome;
+      if (updates.healthStatus !== undefined) dbUpdates.health_status = updates.healthStatus;
+      if (updates.diet !== undefined) dbUpdates.diet = updates.diet;
+      if (updates.lifespan !== undefined) dbUpdates.lifespan = updates.lifespan;
+
+      const { data, error } = await supabase
+        .from("parrots")
+        .update(dbUpdates)
+        .eq("id", id)
+        .select()
+        .single();
+
+      if (!error && data) {
+        const updated: Parrot = {
+          id: data.id,
+          name: data.name,
+          species: data.species,
+          age: data.age || "",
+          gender: data.gender || "Unknown",
+          status: data.status || "Available",
+          description: data.description || "",
+          personality: data.personality || [],
+          imageUrl: data.image_url || "/birds/bird-1.jpeg",
+          featuredOnHome: Boolean(data.featured_on_home),
+          healthStatus: data.health_status,
+          diet: data.diet,
+          lifespan: data.lifespan,
+          createdAt: data.created_at,
+        };
+        const idx = dataStore.parrots.findIndex((p) => p.id === id);
+        if (idx !== -1) dataStore.parrots[idx] = updated;
+        return updated;
+      }
+    } catch (err) {
+      console.warn("Supabase updateParrot fallback:", err);
+    }
+  }
+
   const index = dataStore.parrots.findIndex((p) => p.id === id);
   if (index === -1) return null;
   dataStore.parrots[index] = { ...dataStore.parrots[index], ...updates };
@@ -236,14 +382,46 @@ export async function updateParrot(id: string, updates: Partial<Parrot>): Promis
 }
 
 export async function deleteParrot(id: string): Promise<boolean> {
+  if (supabase) {
+    try {
+      await supabase.from("parrots").delete().eq("id", id);
+    } catch (err) {
+      console.warn("Supabase deleteParrot fallback:", err);
+    }
+  }
   const index = dataStore.parrots.findIndex((p) => p.id === id);
   if (index === -1) return false;
   dataStore.parrots.splice(index, 1);
   return true;
 }
 
-// Homepage Slots Helpers
+// ==========================================
+// HOMEPAGE SLOTS HELPERS
+// ==========================================
 export async function getHomepageSlots(): Promise<HomepageSlot[]> {
+  if (supabase) {
+    try {
+      const { data, error } = await supabase
+        .from("homepage_slots")
+        .select("*")
+        .order("slot_key", { ascending: true });
+
+      if (!error && data && data.length > 0) {
+        return data.map((d) => ({
+          id: d.id,
+          slotKey: d.slot_key,
+          title: d.title || "",
+          subtitle: d.subtitle || "",
+          imageUrl: d.image_url || "/birds/bird-1.jpeg",
+          ctaText: d.cta_text,
+          ctaLink: d.cta_link,
+          updatedAt: d.updated_at,
+        }));
+      }
+    } catch (err) {
+      console.warn("Supabase getHomepageSlots fallback:", err);
+    }
+  }
   return dataStore.slots;
 }
 
@@ -251,29 +429,145 @@ export async function updateHomepageSlot(
   slotKey: string,
   updates: Partial<Omit<HomepageSlot, "id" | "slotKey">>
 ): Promise<HomepageSlot | null> {
+  if (supabase) {
+    try {
+      const dbUpdates: Record<string, unknown> = { updated_at: new Date().toISOString() };
+      if (updates.title !== undefined) dbUpdates.title = updates.title;
+      if (updates.subtitle !== undefined) dbUpdates.subtitle = updates.subtitle;
+      if (updates.imageUrl !== undefined) dbUpdates.image_url = updates.imageUrl;
+      if (updates.ctaText !== undefined) dbUpdates.cta_text = updates.ctaText;
+      if (updates.ctaLink !== undefined) dbUpdates.cta_link = updates.ctaLink;
+
+      const { data, error } = await supabase
+        .from("homepage_slots")
+        .update(dbUpdates)
+        .eq("slot_key", slotKey)
+        .select()
+        .single();
+
+      if (!error && data) {
+        const updated: HomepageSlot = {
+          id: data.id,
+          slotKey: data.slot_key,
+          title: data.title || "",
+          subtitle: data.subtitle || "",
+          imageUrl: data.image_url || "/birds/bird-1.jpeg",
+          ctaText: data.cta_text,
+          ctaLink: data.cta_link,
+          updatedAt: data.updated_at,
+        };
+        const idx = dataStore.slots.findIndex((s) => s.slotKey === slotKey);
+        if (idx !== -1) dataStore.slots[idx] = updated;
+        return updated;
+      }
+    } catch (err) {
+      console.warn("Supabase updateHomepageSlot fallback:", err);
+    }
+  }
+
   const slot = dataStore.slots.find((s) => s.slotKey === slotKey);
   if (!slot) return null;
   Object.assign(slot, updates, { updatedAt: new Date().toISOString() });
   return slot;
 }
 
-// Applications Helpers
+// ==========================================
+// ADOPTION APPLICATIONS HELPERS
+// ==========================================
 export async function getApplications(): Promise<AdoptionApplication[]> {
+  if (supabase) {
+    try {
+      const { data, error } = await supabase
+        .from("applications")
+        .select("*")
+        .order("submitted_at", { ascending: false });
+
+      if (!error && data && data.length > 0) {
+        return data.map((d) => ({
+          id: d.id,
+          applicantName: d.applicant_name,
+          email: d.email,
+          phone: d.phone || "",
+          parrotId: d.parrot_id,
+          parrotName: d.parrot_name,
+          cityState: d.city_state,
+          address: d.address,
+          experienceLevel: d.experience_level || "",
+          housingType: d.housing_type,
+          hasOtherPets: d.has_other_pets,
+          petDetails: d.pet_details,
+          notes: d.notes,
+          submittedFormFileName: d.submitted_form_file_name,
+          submittedFormDataUrl: d.submitted_form_data_url,
+          status: d.status || "Pending",
+          adminNotes: d.admin_notes,
+          submittedAt: d.submitted_at,
+        }));
+      }
+    } catch (err) {
+      console.warn("Supabase getApplications fallback:", err);
+    }
+  }
   return dataStore.applications;
 }
 
 export async function getApplicationById(id: string): Promise<AdoptionApplication | undefined> {
-  return dataStore.applications.find((a) => a.id === id);
+  const apps = await getApplications();
+  return apps.find((a) => a.id === id);
 }
 
 export async function submitApplication(
   data: Omit<AdoptionApplication, "id" | "submittedAt" | "status">
 ): Promise<AdoptionApplication> {
+  const newId = `APP-${Math.floor(1000 + Math.random() * 9000)}`;
+  const now = new Date().toISOString();
+
+  if (supabase) {
+    try {
+      const { data: dbData, error } = await supabase
+        .from("applications")
+        .insert({
+          id: newId,
+          applicant_name: data.applicantName,
+          email: data.email,
+          phone: data.phone,
+          parrot_id: data.parrotId,
+          parrot_name: data.parrotName,
+          city_state: data.cityState,
+          address: data.address,
+          experience_level: data.experienceLevel,
+          housing_type: data.housingType,
+          has_other_pets: data.hasOtherPets,
+          pet_details: data.petDetails,
+          notes: data.notes,
+          submitted_form_file_name: data.submittedFormFileName,
+          submitted_form_data_url: data.submittedFormDataUrl,
+          status: "Pending",
+          submitted_at: now,
+        })
+        .select()
+        .single();
+
+      if (!error && dbData) {
+        const app: AdoptionApplication = {
+          ...data,
+          id: dbData.id,
+          status: "Pending",
+          submittedAt: dbData.submitted_at,
+        };
+        dataStore.applications.unshift(app);
+        return app;
+      }
+    } catch (err) {
+      console.warn("Supabase submitApplication fallback:", err);
+    }
+  }
+
   const newApp: AdoptionApplication = {
     ...data,
-    id: `APP-${Math.floor(1000 + Math.random() * 9000)}`,
+    id: newId,
     status: "Pending",
-    submittedAt: new Date().toISOString(),
+    submittedAt: now,
   };
   dataStore.applications.unshift(newApp);
   return newApp;
@@ -284,6 +578,48 @@ export async function updateApplicationStatus(
   status: AdoptionApplication["status"],
   adminNotes?: string
 ): Promise<AdoptionApplication | null> {
+  if (supabase) {
+    try {
+      const dbUpdates: Record<string, unknown> = { status };
+      if (adminNotes !== undefined) dbUpdates.admin_notes = adminNotes;
+
+      const { data, error } = await supabase
+        .from("applications")
+        .update(dbUpdates)
+        .eq("id", id)
+        .select()
+        .single();
+
+      if (!error && data) {
+        const updated: AdoptionApplication = {
+          id: data.id,
+          applicantName: data.applicant_name,
+          email: data.email,
+          phone: data.phone || "",
+          parrotId: data.parrot_id,
+          parrotName: data.parrot_name,
+          cityState: data.city_state,
+          address: data.address,
+          experienceLevel: data.experience_level || "",
+          housingType: data.housing_type,
+          hasOtherPets: data.has_other_pets,
+          petDetails: data.pet_details,
+          notes: data.notes,
+          submittedFormFileName: data.submitted_form_file_name,
+          submittedFormDataUrl: data.submitted_form_data_url,
+          status: data.status,
+          adminNotes: data.admin_notes,
+          submittedAt: data.submitted_at,
+        };
+        const idx = dataStore.applications.findIndex((a) => a.id === id);
+        if (idx !== -1) dataStore.applications[idx] = updated;
+        return updated;
+      }
+    } catch (err) {
+      console.warn("Supabase updateApplicationStatus fallback:", err);
+    }
+  }
+
   const app = dataStore.applications.find((a) => a.id === id);
   if (!app) return null;
   app.status = status;
@@ -293,23 +629,110 @@ export async function updateApplicationStatus(
   return app;
 }
 
-// Emails Helpers
+// ==========================================
+// SENT EMAILS HELPERS
+// ==========================================
 export async function getSentEmails(): Promise<SentEmailLog[]> {
+  if (supabase) {
+    try {
+      const { data, error } = await supabase
+        .from("sent_emails")
+        .select("*")
+        .order("sent_at", { ascending: false });
+
+      if (!error && data) {
+        return data.map((d) => ({
+          id: d.id,
+          recipientEmail: d.recipient_email,
+          recipientName: d.recipient_name,
+          subject: d.subject,
+          message: d.message,
+          templateUsed: d.template_used,
+          status: d.status,
+          sentAt: d.sent_at,
+        }));
+      }
+    } catch (err) {
+      console.warn("Supabase getSentEmails fallback:", err);
+    }
+  }
   return dataStore.emails;
 }
 
 export async function logSentEmail(email: Omit<SentEmailLog, "id" | "sentAt">): Promise<SentEmailLog> {
+  const newId = `mail-${Date.now()}`;
+  const now = new Date().toISOString();
+
+  if (supabase) {
+    try {
+      const { data, error } = await supabase
+        .from("sent_emails")
+        .insert({
+          id: newId,
+          recipient_email: email.recipientEmail,
+          recipient_name: email.recipientName,
+          subject: email.subject,
+          message: email.message,
+          template_used: email.templateUsed,
+          status: email.status,
+          sent_at: now,
+        })
+        .select()
+        .single();
+
+      if (!error && data) {
+        const record: SentEmailLog = {
+          ...email,
+          id: data.id,
+          sentAt: data.sent_at,
+        };
+        dataStore.emails.unshift(record);
+        return record;
+      }
+    } catch (err) {
+      console.warn("Supabase logSentEmail fallback:", err);
+    }
+  }
+
   const record: SentEmailLog = {
     ...email,
-    id: `mail-${Date.now()}`,
-    sentAt: new Date().toISOString(),
+    id: newId,
+    sentAt: now,
   };
   dataStore.emails.unshift(record);
   return record;
 }
 
-// Received Emails Helpers
+// ==========================================
+// RECEIVED EMAILS HELPERS
+// ==========================================
 export async function getReceivedEmails(): Promise<ReceivedEmail[]> {
+  if (supabase) {
+    try {
+      const { data, error } = await supabase
+        .from("received_emails")
+        .select("*")
+        .order("received_at", { ascending: false });
+
+      if (!error && data) {
+        return data.map((d) => ({
+          id: d.id,
+          fromEmail: d.from_email,
+          fromName: d.from_name,
+          toEmail: d.to_email,
+          subject: d.subject,
+          message: d.message,
+          status: d.status,
+          source: d.source,
+          category: d.category,
+          receivedAt: d.received_at,
+        }));
+      }
+    } catch (err) {
+      console.warn("Supabase getReceivedEmails fallback:", err);
+    }
+  }
+
   if (!dataStore.receivedEmails) {
     dataStore.receivedEmails = [];
   }
@@ -319,13 +742,50 @@ export async function getReceivedEmails(): Promise<ReceivedEmail[]> {
 export async function logReceivedEmail(
   email: Omit<ReceivedEmail, "id" | "receivedAt">
 ): Promise<ReceivedEmail> {
+  const newId = `inbox-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+  const now = new Date().toISOString();
+
+  if (supabase) {
+    try {
+      const { data, error } = await supabase
+        .from("received_emails")
+        .insert({
+          id: newId,
+          from_email: email.fromEmail,
+          from_name: email.fromName,
+          to_email: email.toEmail || "adoptions@fhpra.org",
+          subject: email.subject,
+          message: email.message,
+          status: email.status || "Unread",
+          source: email.source || "Contact Form",
+          category: email.category || "General",
+          received_at: now,
+        })
+        .select()
+        .single();
+
+      if (!error && data) {
+        const record: ReceivedEmail = {
+          ...email,
+          id: data.id,
+          receivedAt: data.received_at,
+        };
+        if (!dataStore.receivedEmails) dataStore.receivedEmails = [];
+        dataStore.receivedEmails.unshift(record);
+        return record;
+      }
+    } catch (err) {
+      console.warn("Supabase logReceivedEmail fallback:", err);
+    }
+  }
+
   if (!dataStore.receivedEmails) {
     dataStore.receivedEmails = [];
   }
   const record: ReceivedEmail = {
     ...email,
-    id: `inbox-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
-    receivedAt: new Date().toISOString(),
+    id: newId,
+    receivedAt: now,
   };
   dataStore.receivedEmails.unshift(record);
   return record;
@@ -335,6 +795,39 @@ export async function updateReceivedEmailStatus(
   id: string,
   status: ReceivedEmail["status"]
 ): Promise<ReceivedEmail | null> {
+  if (supabase) {
+    try {
+      const { data, error } = await supabase
+        .from("received_emails")
+        .update({ status })
+        .eq("id", id)
+        .select()
+        .single();
+
+      if (!error && data) {
+        const updated: ReceivedEmail = {
+          id: data.id,
+          fromEmail: data.from_email,
+          fromName: data.from_name,
+          toEmail: data.to_email,
+          subject: data.subject,
+          message: data.message,
+          status: data.status,
+          source: data.source,
+          category: data.category,
+          receivedAt: data.received_at,
+        };
+        if (dataStore.receivedEmails) {
+          const idx = dataStore.receivedEmails.findIndex((e) => e.id === id);
+          if (idx !== -1) dataStore.receivedEmails[idx] = updated;
+        }
+        return updated;
+      }
+    } catch (err) {
+      console.warn("Supabase updateReceivedEmailStatus fallback:", err);
+    }
+  }
+
   if (!dataStore.receivedEmails) return null;
   const email = dataStore.receivedEmails.find((e) => e.id === id);
   if (!email) return null;
@@ -343,6 +836,14 @@ export async function updateReceivedEmailStatus(
 }
 
 export async function deleteReceivedEmail(id: string): Promise<boolean> {
+  if (supabase) {
+    try {
+      await supabase.from("received_emails").delete().eq("id", id);
+    } catch (err) {
+      console.warn("Supabase deleteReceivedEmail fallback:", err);
+    }
+  }
+
   if (!dataStore.receivedEmails) return false;
   const index = dataStore.receivedEmails.findIndex((e) => e.id === id);
   if (index === -1) return false;
