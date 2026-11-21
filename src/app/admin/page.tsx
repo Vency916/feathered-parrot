@@ -64,6 +64,13 @@ export default function AdminPage() {
   const [applications, setApplications] = useState<AdoptionApplication[]>([]);
   const [emails, setEmails] = useState<SentEmailLog[]>([]);
   const [receivedEmails, setReceivedEmails] = useState<ReceivedEmail[]>([]);
+  const [dbStatus, setDbStatus] = useState<{
+    configured: boolean;
+    connected: boolean;
+    provider: string;
+    latencyMs?: number;
+    error?: string;
+  } | null>(null);
 
   // Email Sub-tab & Inbox States
   const [emailViewMode, setEmailViewMode] = useState<"inbox" | "compose" | "sent">("inbox");
@@ -111,12 +118,13 @@ export default function AdminPage() {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const [parrotsRes, spacesRes, appsRes, emailsRes, receivedRes] = await Promise.all([
+      const [parrotsRes, spacesRes, appsRes, emailsRes, receivedRes, dbStatusRes] = await Promise.all([
         fetch("/api/parrots"),
         fetch("/api/homepage-slots"),
         fetch("/api/applications"),
         fetch("/api/admin/send-email"),
         fetch("/api/admin/received-emails"),
+        fetch("/api/admin/db-status"),
       ]);
 
       if (parrotsRes.ok) setParrots(await parrotsRes.json());
@@ -124,6 +132,7 @@ export default function AdminPage() {
       if (appsRes.ok) setApplications(await appsRes.json());
       if (emailsRes.ok) setEmails(await emailsRes.json());
       if (receivedRes.ok) setReceivedEmails(await receivedRes.json());
+      if (dbStatusRes.ok) setDbStatus(await dbStatusRes.json());
     } catch (err) {
       console.error("Failed to load admin data:", err);
     } finally {
@@ -628,6 +637,28 @@ export default function AdminPage() {
 
         {/* Sidebar Footer */}
         <div className="p-4 border-t border-forest-900/90 space-y-2 bg-forest-950/80">
+          {dbStatus && (
+            <div className="flex items-center justify-between px-3 py-1.5 rounded-lg bg-forest-900/60 text-[11px] text-cream-200 border border-forest-800">
+              <span className="flex items-center gap-1.5 truncate">
+                <span
+                  className={`w-2 h-2 rounded-full shrink-0 ${
+                    dbStatus.connected
+                      ? "bg-emerald-400 animate-pulse"
+                      : dbStatus.configured
+                      ? "bg-amber-400"
+                      : "bg-zinc-500"
+                  }`}
+                />
+                <span className="truncate">
+                  {dbStatus.connected ? "Supabase Active" : "In-Memory Store"}
+                </span>
+              </span>
+              {dbStatus.latencyMs !== undefined && (
+                <span className="text-[10px] text-emerald-400 font-mono">{dbStatus.latencyMs}ms</span>
+              )}
+            </div>
+          )}
+
           <Link
             href="/"
             target="_blank"
@@ -663,13 +694,46 @@ export default function AdminPage() {
             {activeTab === "overview" && (
               <div className="space-y-6 animate-fade-in">
                 {/* Header */}
-                <div className="border-b border-cream-300 pb-4">
-                  <h1 className="text-2xl sm:text-3xl font-extrabold text-forest-900 font-sans tracking-tight">
-                    Sanctuary Overview
-                  </h1>
-                  <p className="text-xs text-forest-700/80 mt-1">
-                    Real-time metrics, recent submissions, and quick operational shortcuts.
-                  </p>
+                <div className="border-b border-cream-300 pb-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                  <div>
+                    <h1 className="text-2xl sm:text-3xl font-extrabold text-forest-900 font-sans tracking-tight">
+                      Sanctuary Overview
+                    </h1>
+                    <p className="text-xs text-forest-700/80 mt-1">
+                      Real-time metrics, recent submissions, and quick operational shortcuts.
+                    </p>
+                  </div>
+
+                  {/* Database Status Badge */}
+                  {dbStatus && (
+                    <div
+                      className={`inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full text-xs font-bold border transition-all ${
+                        dbStatus.connected
+                          ? "bg-emerald-50 text-emerald-900 border-emerald-300 shadow-2xs"
+                          : dbStatus.configured
+                          ? "bg-amber-50 text-amber-900 border-amber-300"
+                          : "bg-cream-100 text-forest-800 border-cream-300"
+                      }`}
+                      title={dbStatus.error || dbStatus.provider}
+                    >
+                      <span
+                        className={`w-2 h-2 rounded-full ${
+                          dbStatus.connected
+                            ? "bg-emerald-600 animate-pulse"
+                            : dbStatus.configured
+                            ? "bg-amber-500"
+                            : "bg-zinc-400"
+                        }`}
+                      />
+                      <span>
+                        {dbStatus.connected
+                          ? `Database: Supabase Live (${dbStatus.latencyMs}ms)`
+                          : dbStatus.configured
+                          ? "Database: Supabase Connecting..."
+                          : "Database: In-Memory (No Supabase Env)"}
+                      </span>
+                    </div>
+                  )}
                 </div>
 
                 {/* Stats Grid */}
