@@ -11,7 +11,22 @@ export async function POST(request: Request) {
     const from = emailData.from || payload.from || "unknown@sender.com";
     const to = Array.isArray(emailData.to) ? emailData.to.join(", ") : (emailData.to || "adoptions@fhpra.org");
     const subject = emailData.subject || payload.subject || "No Subject";
-    const message = emailData.text || emailData.html || payload.text || payload.message || "Empty message body";
+    let message = emailData.text || emailData.html || payload.text || payload.message || "";
+    if (!message && (emailData.email_id || emailData.id) && process.env.RESEND_API_KEY) {
+      try {
+        const { Resend } = await import("resend");
+        const resend = new Resend(process.env.RESEND_API_KEY);
+        const emailDetails = await resend.emails.get(emailData.email_id || emailData.id);
+        if (emailDetails?.data) {
+          message = emailDetails.data.text || emailDetails.data.html || "";
+        }
+      } catch (fetchErr) {
+        console.warn("Could not fetch full email content from Resend:", fetchErr);
+      }
+    }
+    if (!message) {
+      message = "Empty message body";
+    }
 
     // Extract name from "Name <email@example.com>" if present
     let fromEmail = from;

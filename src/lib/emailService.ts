@@ -41,6 +41,7 @@ export async function sendAdminEmail(params: SendEmailParams) {
       const response = await resend.emails.send({
         from: fromEmail,
         to: [params.recipientEmail],
+        replyTo: process.env.REPLY_TO_EMAIL || (process.env.EMAIL_FROM ? undefined : "adoptions@fhpra.org"),
         subject: params.subject,
         text: params.message,
         html: htmlBody,
