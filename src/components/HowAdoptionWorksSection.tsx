@@ -107,7 +107,7 @@ export default function HowAdoptionWorksSection({ onOpenInquiry }: HowAdoptionWo
                 if (onOpenInquiry) {
                   onOpenInquiry("Adoption Inquiry");
                 } else {
-                  window.location.href = "mailto:adoptions@featherandhome.org?subject=Adoption Inquiry";
+                  window.location.href = "mailto:adoptions@fhpra.org?subject=Adoption Inquiry";
                 }
               }}
               className="inline-block px-6 py-2.5 rounded-full bg-forest-900 text-cream-100 font-bold text-xs sm:text-sm tracking-wide hover:bg-forest-850 transition-all cursor-pointer shadow-xs"

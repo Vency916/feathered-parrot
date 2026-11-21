@@ -146,7 +146,7 @@ export default function SupportAndContactSection({ onOpenInquiry }: SupportAndCo
                   if (onOpenInquiry) {
                     onOpenInquiry("Donation Inquiry");
                   } else {
-                    window.location.href = "mailto:adoptions@featherandhome.org?subject=Donation Inquiry";
+                    window.location.href = "mailto:adoptions@fhpra.org?subject=Donation Inquiry";
                   }
                 }}
                 className="inline-block px-6 py-2.5 rounded-full bg-forest-900 text-cream-100 font-bold text-xs sm:text-sm tracking-wide hover:bg-forest-850 transition-all cursor-pointer shadow-xs"
@@ -324,11 +324,10 @@ export default function SupportAndContactSection({ onOpenInquiry }: SupportAndCo
                   {/* Upload Dropzone */}
                   <div
                     onClick={() => fileInputRef.current?.click()}
-                    className={`border-2 border-dashed rounded-xl p-4 text-center cursor-pointer transition-all ${
-                      fileName
+                    className={`border-2 border-dashed rounded-xl p-4 text-center cursor-pointer transition-all ${fileName
                         ? "border-forest-600 bg-sage-100"
                         : "border-cream-300 bg-white hover:bg-cream-50"
-                    }`}
+                      }`}
                   >
                     <input
                       ref={fileInputRef}
@@ -387,7 +386,7 @@ export default function SupportAndContactSection({ onOpenInquiry }: SupportAndCo
                 if (onOpenInquiry) {
                   onOpenInquiry("Adoption Inquiry");
                 } else {
-                  window.location.href = "mailto:adoptions@featherandhome.org?subject=Adoption Inquiry";
+                  window.location.href = "mailto:adoptions@fhpra.org?subject=Adoption Inquiry";
                 }
               }}
               className="inline-block px-6 py-2.5 rounded-full bg-forest-900 text-cream-100 font-bold text-xs sm:text-sm tracking-wide hover:bg-forest-850 transition-all cursor-pointer shadow-xs"

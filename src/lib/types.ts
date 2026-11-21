@@ -72,3 +72,16 @@ export interface SentEmailLog {
   sentAt: string;
   status: "Sent" | "Delivered" | "Simulated (No API Key)";
 }
+
+export interface ReceivedEmail {
+  id: string;
+  fromEmail: string;
+  fromName?: string;
+  toEmail?: string;
+  subject: string;
+  message: string;
+  receivedAt: string;
+  status: "Unread" | "Read" | "Replied";
+  source: "Contact Form" | "Adoption Inquiry" | "Inbound Email" | "Website Visitor";
+  category?: "General" | "Adoption Inquiry" | "Donations" | "Support";
+}

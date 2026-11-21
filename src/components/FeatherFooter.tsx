@@ -21,8 +21,8 @@ export default function FeatherFooter() {
               <span className="opacity-40">|</span>
               <span>New York, USA</span>
               <span className="opacity-40">|</span>
-              <a href="mailto:adoptions@featherandhome.org" className="hover:text-cream-50 transition-colors">
-                adoptions@featherandhome.org
+              <a href="mailto:adoptions@fhpra.org" className="hover:text-cream-50 transition-colors">
+                adoptions@fhpra.org
               </a>
             </div>
           </div>

@@ -1,4 +1,4 @@
-import { Parrot, AdoptionApplication, HomepageSlot, SentEmailLog } from "./types";
+import { Parrot, AdoptionApplication, HomepageSlot, SentEmailLog, ReceivedEmail } from "./types";
 
 // Seed Parrots using the actual uploaded bird photos
 const initialParrots: Parrot[] = [
@@ -186,6 +186,34 @@ const initialEmails: SentEmailLog[] = [
   },
 ];
 
+// Seed Received Emails
+const initialReceivedEmails: ReceivedEmail[] = [
+  {
+    id: "inbox-1",
+    fromEmail: "elena.rostova@example.com",
+    fromName: "Elena Rostova",
+    toEmail: "adoptions@fhpra.org",
+    subject: "Inquiring about Barnaby (Cockatoo) & temperament",
+    message: "Hello Feathered Haven team,\n\nI saw Barnaby on your website and fell in love with his personality description! I have 8 years experience caring for large birds and have an insulated outdoor aviary plus custom indoor perches.\n\nCould you let me know if he gets along well with female caregivers, and what his current daily routine is like?\n\nThank you so much,\nElena Rostova\n(555) 234-5678\nPortland, OR",
+    receivedAt: new Date(Date.now() - 3600000 * 3).toISOString(),
+    status: "Unread",
+    source: "Adoption Inquiry",
+    category: "Adoption Inquiry",
+  },
+  {
+    id: "inbox-2",
+    fromEmail: "david.chen@example.com",
+    fromName: "David Chen",
+    toEmail: "info@fhpra.org",
+    subject: "Pellet feed and aviary toy donation for the sanctuary",
+    message: "Hi there,\n\nWe would like to donate three 20lb bags of Harrison's Organic High Potency pellets and several handmade foraging wooden toys to the sanctuary.\n\nWhere is the best shipping address or drop-off point for these supplies?\n\nWarm regards,\nDavid Chen",
+    receivedAt: new Date(Date.now() - 3600000 * 18).toISOString(),
+    status: "Read",
+    source: "Contact Form",
+    category: "Donations",
+  },
+];
+
 // Global in-memory storage for serverless runtime resilience
 declare global {
   // eslint-disable-next-line no-var
@@ -194,6 +222,7 @@ declare global {
     slots: HomepageSlot[];
     applications: AdoptionApplication[];
     emails: SentEmailLog[];
+    receivedEmails: ReceivedEmail[];
   } | undefined;
 }
 
@@ -203,12 +232,16 @@ if (!globalThis.__parrotDataStore) {
     slots: [...initialSlots],
     applications: [...initialApplications],
     emails: [...initialEmails],
+    receivedEmails: [...initialReceivedEmails],
   };
 } else {
   // Update slots and parrots with the real bird images if still on old placeholders
   globalThis.__parrotDataStore.parrots = [...initialParrots];
   globalThis.__parrotDataStore.slots = [...initialSlots];
   globalThis.__parrotDataStore.applications = [...initialApplications];
+  if (!globalThis.__parrotDataStore.receivedEmails) {
+    globalThis.__parrotDataStore.receivedEmails = [...initialReceivedEmails];
+  }
 }
 
 export const dataStore = globalThis.__parrotDataStore;
@@ -310,4 +343,46 @@ export async function logSentEmail(email: Omit<SentEmailLog, "id" | "sentAt">): 
   };
   dataStore.emails.unshift(record);
   return record;
+}
+
+// Received Emails Helpers
+export async function getReceivedEmails(): Promise<ReceivedEmail[]> {
+  if (!dataStore.receivedEmails) {
+    dataStore.receivedEmails = [...initialReceivedEmails];
+  }
+  return dataStore.receivedEmails;
+}
+
+export async function logReceivedEmail(
+  email: Omit<ReceivedEmail, "id" | "receivedAt">
+): Promise<ReceivedEmail> {
+  if (!dataStore.receivedEmails) {
+    dataStore.receivedEmails = [...initialReceivedEmails];
+  }
+  const record: ReceivedEmail = {
+    ...email,
+    id: `inbox-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+    receivedAt: new Date().toISOString(),
+  };
+  dataStore.receivedEmails.unshift(record);
+  return record;
+}
+
+export async function updateReceivedEmailStatus(
+  id: string,
+  status: ReceivedEmail["status"]
+): Promise<ReceivedEmail | null> {
+  if (!dataStore.receivedEmails) return null;
+  const email = dataStore.receivedEmails.find((e) => e.id === id);
+  if (!email) return null;
+  email.status = status;
+  return email;
+}
+
+export async function deleteReceivedEmail(id: string): Promise<boolean> {
+  if (!dataStore.receivedEmails) return false;
+  const index = dataStore.receivedEmails.findIndex((e) => e.id === id);
+  if (index === -1) return false;
+  dataStore.receivedEmails.splice(index, 1);
+  return true;
 }

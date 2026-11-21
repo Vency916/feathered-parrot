@@ -31,12 +31,18 @@ import {
   X,
   ChevronRight,
   FileText,
+  Inbox,
+  Reply,
+  Search,
+  CheckCheck,
+  Filter,
 } from "lucide-react";
 import {
   Parrot,
   AdoptionApplication,
   HomepageSlot,
   SentEmailLog,
+  ReceivedEmail,
   ParrotSpecies,
   AdoptionStatus,
   ApplicationStatus,
@@ -57,6 +63,13 @@ export default function AdminPage() {
   const [spaces, setSpaces] = useState<HomepageSlot[]>([]);
   const [applications, setApplications] = useState<AdoptionApplication[]>([]);
   const [emails, setEmails] = useState<SentEmailLog[]>([]);
+  const [receivedEmails, setReceivedEmails] = useState<ReceivedEmail[]>([]);
+
+  // Email Sub-tab & Inbox States
+  const [emailViewMode, setEmailViewMode] = useState<"inbox" | "compose" | "sent">("inbox");
+  const [selectedReceivedEmail, setSelectedReceivedEmail] = useState<ReceivedEmail | null>(null);
+  const [inboxSearch, setInboxSearch] = useState("");
+  const [inboxFilter, setInboxFilter] = useState<"all" | "unread" | "replied">("all");
 
   // Parrot Form Modal
   const [isParrotModalOpen, setIsParrotModalOpen] = useState(false);
@@ -98,17 +111,19 @@ export default function AdminPage() {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const [parrotsRes, spacesRes, appsRes, emailsRes] = await Promise.all([
+      const [parrotsRes, spacesRes, appsRes, emailsRes, receivedRes] = await Promise.all([
         fetch("/api/parrots"),
         fetch("/api/homepage-slots"),
         fetch("/api/applications"),
         fetch("/api/admin/send-email"),
+        fetch("/api/admin/received-emails"),
       ]);
 
       if (parrotsRes.ok) setParrots(await parrotsRes.json());
       if (spacesRes.ok) setSpaces(await spacesRes.json());
       if (appsRes.ok) setApplications(await appsRes.json());
       if (emailsRes.ok) setEmails(await emailsRes.json());
+      if (receivedRes.ok) setReceivedEmails(await receivedRes.json());
     } catch (err) {
       console.error("Failed to load admin data:", err);
     } finally {
@@ -151,8 +166,92 @@ export default function AdminPage() {
     setRecipientName(app.applicantName);
     applyEmailTemplate("received", app.applicantName, app.parrotName);
     setActiveTab("emails");
+    setEmailViewMode("compose");
     setSelectedApp(null);
     setSidebarOpen(false);
+  };
+
+  // Reply to Received Email
+  const handleReplyToReceivedEmail = (email: ReceivedEmail) => {
+    setRecipientEmail(email.fromEmail);
+    setRecipientName(email.fromName || "");
+    const replySubject = email.subject.toLowerCase().startsWith("re:")
+      ? email.subject
+      : `Re: ${email.subject}`;
+    setEmailSubject(replySubject);
+    setEmailMessage(
+      `Dear ${email.fromName || "Friend"},\n\nThank you for reaching out to Feathered Haven regarding "${email.subject}".\n\n\n\nWarm regards,\nFeathered Haven Team\nadoptions@fhpra.org`
+    );
+    setSelectedTemplateId("custom");
+    setActiveTab("emails");
+    setEmailViewMode("compose");
+    setSelectedReceivedEmail(null);
+    // Mark as replied
+    handleMarkEmailStatus(email.id, "Replied");
+  };
+
+  // Handle Mark Received Email Status
+  const handleMarkEmailStatus = async (id: string, newStatus: ReceivedEmail["status"]) => {
+    try {
+      const res = await fetch(`/api/admin/received-emails/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: newStatus }),
+      });
+      if (res.ok) {
+        setReceivedEmails((prev) =>
+          prev.map((e) => (e.id === id ? { ...e, status: newStatus } : e))
+        );
+        if (selectedReceivedEmail?.id === id) {
+          setSelectedReceivedEmail((prev) => (prev ? { ...prev, status: newStatus } : null));
+        }
+      }
+    } catch (err) {
+      console.error("Failed to update email status:", err);
+    }
+  };
+
+  // Handle Delete Received Email
+  const handleDeleteReceivedEmail = async (id: string) => {
+    if (!confirm("Are you sure you want to delete this received message?")) return;
+    try {
+      const res = await fetch(`/api/admin/received-emails/${id}`, {
+        method: "DELETE",
+      });
+      if (res.ok) {
+        setReceivedEmails((prev) => prev.filter((e) => e.id !== id));
+        if (selectedReceivedEmail?.id === id) {
+          setSelectedReceivedEmail(null);
+        }
+      }
+    } catch (err) {
+      console.error("Failed to delete email:", err);
+    }
+  };
+
+  // Simulate Inbound Email Test
+  const handleSimulateReceivedEmail = async () => {
+    try {
+      const res = await fetch("/api/admin/received-emails", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          fromName: "Sarah Jenkins",
+          fromEmail: "sarah.jenkins@example.com",
+          toEmail: "adoptions@fhpra.org",
+          subject: "Adoption inquiry for Rio (Macaw) & flight room details",
+          message: "Hello! I am very interested in adopting Rio. I have a dedicated 20x15ft flight room with non-toxic pine perches and full spectrum avian lighting. Please let me know the next steps for a meet-and-greet!\n\nBest,\nSarah Jenkins\n(555) 789-0123\nSeattle, WA",
+          source: "Adoption Inquiry",
+          category: "Adoption Inquiry",
+        }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setReceivedEmails((prev) => [data.email, ...prev]);
+      }
+    } catch (err) {
+      console.error("Failed to simulate email:", err);
+    }
   };
 
   // Handle Send Email
@@ -397,9 +496,10 @@ export default function AdminPage() {
     },
     {
       id: "emails" as AdminTab,
-      label: "Send Mail & Logs",
-      icon: Mail,
-      badge: emails.length,
+      label: "Inbox & Emails",
+      icon: Inbox,
+      badge: receivedEmails.length,
+      hasPending: receivedEmails.some((e) => e.status === "Unread"),
     },
   ];
 
@@ -598,7 +698,7 @@ export default function AdminPage() {
                 </div>
 
                 {/* Stats Grid */}
-                <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5">
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 sm:gap-5">
                   <div className="bg-white rounded-2xl border border-cream-300 p-5 shadow-xs">
                     <p className="text-[11px] font-bold uppercase tracking-wider text-forest-700">
                       Total Parrots
@@ -623,6 +723,29 @@ export default function AdminPage() {
                     </p>
                   </div>
 
+                  <div
+                    onClick={() => {
+                      setActiveTab("emails");
+                      setEmailViewMode("inbox");
+                    }}
+                    className="bg-white rounded-2xl border border-cream-300 p-5 shadow-xs cursor-pointer hover:border-forest-600 transition-colors"
+                  >
+                    <div className="flex items-center justify-between">
+                      <p className="text-[11px] font-bold uppercase tracking-wider text-forest-700">
+                        Received Inbox
+                      </p>
+                      {receivedEmails.some((e) => e.status === "Unread") && (
+                        <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                      )}
+                    </div>
+                    <h3 className="text-2xl sm:text-3xl font-black text-forest-900 mt-1">
+                      {receivedEmails.length}
+                    </h3>
+                    <p className="text-[11px] text-emerald-700 font-semibold mt-1">
+                      {receivedEmails.filter((e) => e.status === "Unread").length} unread messages
+                    </p>
+                  </div>
+
                   <div className="bg-white rounded-2xl border border-cream-300 p-5 shadow-xs">
                     <p className="text-[11px] font-bold uppercase tracking-wider text-forest-700">
                       Home Spaces
@@ -631,7 +754,7 @@ export default function AdminPage() {
                       {spaces.length}
                     </h3>
                     <p className="text-[11px] text-forest-600 mt-1">
-                      Editable image slots
+                      Editable slots
                     </p>
                   </div>
 
@@ -643,7 +766,7 @@ export default function AdminPage() {
                       {emails.length}
                     </h3>
                     <p className="text-[11px] text-forest-600 mt-1">
-                      Applicant updates
+                      Outbound updates
                     </p>
                   </div>
                 </div>
@@ -1186,164 +1309,539 @@ export default function AdminPage() {
               </div>
             )}
 
-            {/* TAB 5: SEND MAIL & LOGS */}
+            {/* TAB 5: INBOX & EMAILS */}
             {activeTab === "emails" && (
               <div className="space-y-6 animate-fade-in">
-                <div className="border-b border-cream-300 pb-4">
-                  <h1 className="text-2xl sm:text-3xl font-extrabold text-forest-900 font-sans tracking-tight">
-                    Admin Email Dispatcher
-                  </h1>
-                  <p className="text-xs text-forest-700/80 mt-1">
-                    Send updates, interview invitations, and approvals directly to applicants using Resend.
-                  </p>
+                {/* Header & Sub-Navigation */}
+                <div className="border-b border-cream-300 pb-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                  <div>
+                    <h1 className="text-2xl sm:text-3xl font-extrabold text-forest-900 font-sans tracking-tight">
+                      Inbox & Email Center
+                    </h1>
+                    <p className="text-xs text-forest-700/80 mt-1">
+                      Manage incoming inquiries, compose template updates, and review sent delivery logs.
+                    </p>
+                  </div>
+
+                  {/* Sub-view switcher */}
+                  <div className="inline-flex p-1 bg-cream-200/80 rounded-2xl border border-cream-300 shrink-0">
+                    <button
+                      onClick={() => setEmailViewMode("inbox")}
+                      className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                        emailViewMode === "inbox"
+                          ? "bg-forest-850 text-cream-50 shadow-xs"
+                          : "text-forest-800 hover:text-forest-950"
+                      }`}
+                    >
+                      <Inbox className="w-3.5 h-3.5" />
+                      <span>Received Inbox</span>
+                      {receivedEmails.filter((e) => e.status === "Unread").length > 0 && (
+                        <span className="px-1.5 py-0.2 rounded-full bg-emerald-500 text-white text-[10px] font-black">
+                          {receivedEmails.filter((e) => e.status === "Unread").length}
+                        </span>
+                      )}
+                    </button>
+
+                    <button
+                      onClick={() => setEmailViewMode("compose")}
+                      className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                        emailViewMode === "compose"
+                          ? "bg-forest-850 text-cream-50 shadow-xs"
+                          : "text-forest-800 hover:text-forest-950"
+                      }`}
+                    >
+                      <Send className="w-3.5 h-3.5" />
+                      <span>Compose Email</span>
+                    </button>
+
+                    <button
+                      onClick={() => setEmailViewMode("sent")}
+                      className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                        emailViewMode === "sent"
+                          ? "bg-forest-850 text-cream-50 shadow-xs"
+                          : "text-forest-800 hover:text-forest-950"
+                      }`}
+                    >
+                      <Mail className="w-3.5 h-3.5" />
+                      <span>Sent History ({emails.length})</span>
+                    </button>
+                  </div>
                 </div>
 
-                <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-                  {/* Composer */}
-                  <div className="lg:col-span-7 bg-white rounded-2xl border border-cream-300 p-5 sm:p-7 shadow-xs space-y-4">
-                    <h4 className="text-sm font-bold text-forest-900 flex items-center gap-2 border-b border-cream-200 pb-2">
-                      <Send className="w-4 h-4 text-forest-700" />
-                      <span>Compose Message</span>
-                    </h4>
+                {/* SUB-VIEW 1: RECEIVED INBOX */}
+                {emailViewMode === "inbox" && (
+                  <div className="space-y-4">
+                    {/* Controls & Filter Bar */}
+                    <div className="bg-white rounded-2xl border border-cream-300 p-4 shadow-xs flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <div className="relative">
+                          <Search className="w-4 h-4 text-forest-600/60 absolute left-3 top-1/2 -translate-y-1/2" />
+                          <input
+                            type="text"
+                            value={inboxSearch}
+                            onChange={(e) => setInboxSearch(e.target.value)}
+                            placeholder="Search sender, subject, message..."
+                            className="pl-9 pr-4 py-1.5 rounded-xl bg-cream-50 border border-cream-300 text-xs text-forest-900 focus:outline-none focus:ring-2 focus:ring-forest-600 w-64"
+                          />
+                        </div>
 
-                    {emailSuccessMsg && (
-                      <div className="p-3.5 rounded-xl bg-emerald-50 border border-emerald-300 text-emerald-900 text-xs flex items-start gap-2">
-                        <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
-                        <div>{emailSuccessMsg}</div>
+                        {/* Filter buttons */}
+                        <div className="flex items-center gap-1 bg-cream-100 p-0.5 rounded-xl border border-cream-200">
+                          <button
+                            onClick={() => setInboxFilter("all")}
+                            className={`px-3 py-1 rounded-lg text-xs font-semibold cursor-pointer ${
+                              inboxFilter === "all"
+                                ? "bg-white text-forest-900 shadow-xs"
+                                : "text-forest-700 hover:text-forest-900"
+                            }`}
+                          >
+                            All ({receivedEmails.length})
+                          </button>
+                          <button
+                            onClick={() => setInboxFilter("unread")}
+                            className={`px-3 py-1 rounded-lg text-xs font-semibold cursor-pointer ${
+                              inboxFilter === "unread"
+                                ? "bg-white text-forest-900 shadow-xs"
+                                : "text-forest-700 hover:text-forest-900"
+                            }`}
+                          >
+                            Unread ({receivedEmails.filter((e) => e.status === "Unread").length})
+                          </button>
+                          <button
+                            onClick={() => setInboxFilter("replied")}
+                            className={`px-3 py-1 rounded-lg text-xs font-semibold cursor-pointer ${
+                              inboxFilter === "replied"
+                                ? "bg-white text-forest-900 shadow-xs"
+                                : "text-forest-700 hover:text-forest-900"
+                            }`}
+                          >
+                            Replied ({receivedEmails.filter((e) => e.status === "Replied").length})
+                          </button>
+                        </div>
                       </div>
-                    )}
 
-                    {emailErrorMsg && (
-                      <div className="p-3.5 rounded-xl bg-rose-50 border border-rose-300 text-rose-900 text-xs flex items-start gap-2">
-                        <AlertCircle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
-                        <div>{emailErrorMsg}</div>
-                      </div>
-                    )}
-
-                    <form onSubmit={handleSendEmail} className="space-y-4">
-                      <div>
-                        <label className="block text-xs font-bold text-forest-900 mb-1">
-                          Select Template
-                        </label>
-                        <select
-                          value={selectedTemplateId}
-                          onChange={(e) => applyEmailTemplate(e.target.value)}
-                          className="w-full px-3.5 py-2 rounded-xl bg-cream-50 border border-cream-300 text-xs text-forest-900 font-semibold focus:outline-none focus:ring-2 focus:ring-forest-600"
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={handleSimulateReceivedEmail}
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-cream-100 hover:bg-cream-200 text-forest-800 text-xs font-semibold border border-cream-300 transition-colors cursor-pointer"
+                          title="Simulate an incoming email for testing"
                         >
-                          {EMAIL_TEMPLATES.map((tmpl) => (
-                            <option key={tmpl.id} value={tmpl.id}>
-                              {tmpl.name}
-                            </option>
-                          ))}
-                          <option value="custom">Custom Message (Blank)</option>
-                        </select>
+                          <Plus className="w-3.5 h-3.5 text-forest-600" />
+                          <span>Simulate Inbound Test</span>
+                        </button>
+
+                        <button
+                          onClick={async () => {
+                            const res = await fetch("/api/admin/received-emails");
+                            if (res.ok) setReceivedEmails(await res.json());
+                          }}
+                          className="p-2 rounded-xl bg-cream-100 hover:bg-cream-200 text-forest-800 text-xs border border-cream-300 transition-colors cursor-pointer"
+                          title="Refresh Inbox"
+                        >
+                          <RefreshCw className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Received Emails List */}
+                    <div className="bg-white rounded-2xl border border-cream-300 shadow-xs overflow-hidden">
+                      {(() => {
+                        const filtered = receivedEmails
+                          .filter((e) => {
+                            if (inboxFilter === "unread") return e.status === "Unread";
+                            if (inboxFilter === "replied") return e.status === "Replied";
+                            return true;
+                          })
+                          .filter((e) => {
+                            if (!inboxSearch.trim()) return true;
+                            const q = inboxSearch.toLowerCase();
+                            return (
+                              e.fromName?.toLowerCase().includes(q) ||
+                              e.fromEmail.toLowerCase().includes(q) ||
+                              e.subject.toLowerCase().includes(q) ||
+                              e.message.toLowerCase().includes(q)
+                            );
+                          });
+
+                        if (filtered.length === 0) {
+                          return (
+                            <div className="p-12 text-center space-y-3">
+                              <Inbox className="w-12 h-12 text-forest-300 mx-auto" />
+                              <h3 className="text-sm font-bold text-forest-900">No messages found</h3>
+                              <p className="text-xs text-forest-700/70 max-w-sm mx-auto">
+                                No received messages match your current filter. Incoming messages from website visitors or email inboxes will show up here.
+                              </p>
+                              <button
+                                onClick={handleSimulateReceivedEmail}
+                                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full bg-forest-850 text-cream-50 text-xs font-bold cursor-pointer hover:bg-forest-900"
+                              >
+                                <Plus className="w-3.5 h-3.5" />
+                                <span>Create a Test Inquiry</span>
+                              </button>
+                            </div>
+                          );
+                        }
+
+                        return (
+                          <div className="divide-y divide-cream-200">
+                            {filtered.map((item) => {
+                              const isUnread = item.status === "Unread";
+                              const isReplied = item.status === "Replied";
+
+                              return (
+                                <div
+                                  key={item.id}
+                                  className={`p-4 sm:p-5 transition-colors flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 ${
+                                    isUnread
+                                      ? "bg-emerald-50/40 hover:bg-emerald-50/80 border-l-4 border-l-emerald-600"
+                                      : "hover:bg-cream-50"
+                                  }`}
+                                >
+                                  {/* Left: Sender & Subject */}
+                                  <div
+                                    onClick={() => {
+                                      setSelectedReceivedEmail(item);
+                                      if (isUnread) handleMarkEmailStatus(item.id, "Read");
+                                    }}
+                                    className="flex items-start gap-3.5 cursor-pointer flex-1 min-w-0"
+                                  >
+                                    <div
+                                      className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-xs shrink-0 ${
+                                        isUnread
+                                          ? "bg-emerald-600 text-white shadow-xs"
+                                          : isReplied
+                                          ? "bg-sky-100 text-sky-800"
+                                          : "bg-cream-200 text-forest-800"
+                                      }`}
+                                    >
+                                      {item.fromName
+                                        ? item.fromName.substring(0, 2).toUpperCase()
+                                        : item.fromEmail.substring(0, 2).toUpperCase()}
+                                    </div>
+
+                                    <div className="space-y-1 min-w-0 flex-1">
+                                      <div className="flex flex-wrap items-center gap-2">
+                                        <span
+                                          className={`text-xs ${
+                                            isUnread ? "font-black text-forest-950" : "font-bold text-forest-900"
+                                          }`}
+                                        >
+                                          {item.fromName || item.fromEmail}
+                                        </span>
+
+                                        <span className="text-[11px] text-forest-600/70 truncate max-w-xs">
+                                          &lt;{item.fromEmail}&gt;
+                                        </span>
+
+                                        {/* Status Pill */}
+                                        {isUnread && (
+                                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 text-[10px] font-black">
+                                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 animate-pulse" />
+                                            <span>Unread</span>
+                                          </span>
+                                        )}
+                                        {isReplied && (
+                                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-sky-100 text-sky-800 text-[10px] font-bold">
+                                            <Reply className="w-2.5 h-2.5" />
+                                            <span>Replied</span>
+                                          </span>
+                                        )}
+                                        {item.status === "Read" && (
+                                          <span className="px-2 py-0.5 rounded-full bg-cream-100 text-forest-700 text-[10px] font-medium border border-cream-200">
+                                            Read
+                                          </span>
+                                        )}
+
+                                        {/* Source pill */}
+                                        <span className="px-2 py-0.5 rounded-full bg-forest-100 text-forest-800 text-[10px] font-semibold">
+                                          {item.source}
+                                        </span>
+                                      </div>
+
+                                      <h4
+                                        className={`text-xs truncate ${
+                                          isUnread ? "font-extrabold text-forest-950" : "font-semibold text-forest-850"
+                                        }`}
+                                      >
+                                        {item.subject}
+                                      </h4>
+
+                                      <p className="text-[11px] text-forest-700/80 line-clamp-1">
+                                        {item.message}
+                                      </p>
+                                    </div>
+                                  </div>
+
+                                  {/* Right: Date & Actions */}
+                                  <div className="flex sm:flex-col items-center sm:items-end justify-between sm:justify-center gap-2 shrink-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-cream-200">
+                                    <span className="text-[10px] text-forest-600/80 whitespace-nowrap">
+                                      {new Date(item.receivedAt).toLocaleDateString([], {
+                                        month: "short",
+                                        day: "numeric",
+                                        hour: "2-digit",
+                                        minute: "2-digit",
+                                      })}
+                                    </span>
+
+                                    <div className="flex items-center gap-1.5">
+                                      <button
+                                        onClick={() => {
+                                          setSelectedReceivedEmail(item);
+                                          if (isUnread) handleMarkEmailStatus(item.id, "Read");
+                                        }}
+                                        className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-cream-100 hover:bg-cream-200 text-forest-900 text-xs font-semibold border border-cream-300 transition-colors cursor-pointer"
+                                        title="Read Email"
+                                      >
+                                        <Eye className="w-3 h-3 text-forest-700" />
+                                        <span>View</span>
+                                      </button>
+
+                                      <button
+                                        onClick={() => handleReplyToReceivedEmail(item)}
+                                        className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-forest-850 hover:bg-forest-900 text-cream-50 text-xs font-semibold transition-colors cursor-pointer shadow-2xs"
+                                        title="Reply to Applicant"
+                                      >
+                                        <Reply className="w-3 h-3" />
+                                        <span>Reply</span>
+                                      </button>
+
+                                      <button
+                                        onClick={() =>
+                                          handleMarkEmailStatus(item.id, isUnread ? "Read" : "Unread")
+                                        }
+                                        className="p-1 rounded-lg hover:bg-cream-200 text-forest-700 transition-colors cursor-pointer"
+                                        title={isUnread ? "Mark as Read" : "Mark as Unread"}
+                                      >
+                                        <CheckCheck className="w-3.5 h-3.5" />
+                                      </button>
+
+                                      <button
+                                        onClick={() => handleDeleteReceivedEmail(item.id)}
+                                        className="p-1 rounded-lg hover:bg-rose-100 text-rose-700 transition-colors cursor-pointer"
+                                        title="Delete Message"
+                                      >
+                                        <Trash2 className="w-3.5 h-3.5" />
+                                      </button>
+                                    </div>
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        );
+                      })()}
+                    </div>
+                  </div>
+                )}
+
+                {/* SUB-VIEW 2: COMPOSE / EMAIL DISPATCHER */}
+                {emailViewMode === "compose" && (
+                  <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+                    <div className="lg:col-span-8 bg-white rounded-2xl border border-cream-300 p-5 sm:p-7 shadow-xs space-y-4">
+                      <div className="flex items-center justify-between border-b border-cream-200 pb-2">
+                        <h4 className="text-sm font-bold text-forest-900 flex items-center gap-2">
+                          <Send className="w-4 h-4 text-forest-700" />
+                          <span>Compose Outbound Message</span>
+                        </h4>
+                        <span className="text-[11px] text-forest-600 font-medium">
+                          Powered by Resend
+                        </span>
                       </div>
 
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      {emailSuccessMsg && (
+                        <div className="p-3.5 rounded-xl bg-emerald-50 border border-emerald-300 text-emerald-900 text-xs flex items-start gap-2">
+                          <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+                          <div>{emailSuccessMsg}</div>
+                        </div>
+                      )}
+
+                      {emailErrorMsg && (
+                        <div className="p-3.5 rounded-xl bg-rose-50 border border-rose-300 text-rose-900 text-xs flex items-start gap-2">
+                          <AlertCircle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
+                          <div>{emailErrorMsg}</div>
+                        </div>
+                      )}
+
+                      <form onSubmit={handleSendEmail} className="space-y-4">
                         <div>
                           <label className="block text-xs font-bold text-forest-900 mb-1">
-                            Recipient Email *
+                            Select Email Template
                           </label>
-                          <input
-                            type="email"
-                            required
-                            value={recipientEmail}
-                            onChange={(e) => setRecipientEmail(e.target.value)}
-                            placeholder="applicant@example.com"
-                            className="w-full px-3.5 py-2 rounded-xl bg-cream-50 border border-cream-300 text-xs text-forest-900 focus:outline-none focus:ring-2 focus:ring-forest-600"
-                          />
+                          <select
+                            value={selectedTemplateId}
+                            onChange={(e) => applyEmailTemplate(e.target.value)}
+                            className="w-full px-3.5 py-2 rounded-xl bg-cream-50 border border-cream-300 text-xs text-forest-900 font-semibold focus:outline-none focus:ring-2 focus:ring-forest-600"
+                          >
+                            {EMAIL_TEMPLATES.map((tmpl) => (
+                              <option key={tmpl.id} value={tmpl.id}>
+                                {tmpl.name}
+                              </option>
+                            ))}
+                            <option value="custom">Custom Message (Blank / Custom Reply)</option>
+                          </select>
+                        </div>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                          <div>
+                            <label className="block text-xs font-bold text-forest-900 mb-1">
+                              Recipient Email *
+                            </label>
+                            <input
+                              type="email"
+                              required
+                              value={recipientEmail}
+                              onChange={(e) => setRecipientEmail(e.target.value)}
+                              placeholder="applicant@example.com"
+                              className="w-full px-3.5 py-2 rounded-xl bg-cream-50 border border-cream-300 text-xs text-forest-900 focus:outline-none focus:ring-2 focus:ring-forest-600"
+                            />
+                          </div>
+
+                          <div>
+                            <label className="block text-xs font-bold text-forest-900 mb-1">
+                              Recipient Name
+                            </label>
+                            <input
+                              type="text"
+                              value={recipientName}
+                              onChange={(e) => setRecipientName(e.target.value)}
+                              placeholder="e.g. Marcus Sterling"
+                              className="w-full px-3.5 py-2 rounded-xl bg-cream-50 border border-cream-300 text-xs text-forest-900 focus:outline-none focus:ring-2 focus:ring-forest-600"
+                            />
+                          </div>
                         </div>
 
                         <div>
                           <label className="block text-xs font-bold text-forest-900 mb-1">
-                            Recipient Name
+                            Subject Line *
                           </label>
                           <input
                             type="text"
-                            value={recipientName}
-                            onChange={(e) => setRecipientName(e.target.value)}
-                            placeholder="e.g. Marcus Sterling"
-                            className="w-full px-3.5 py-2 rounded-xl bg-cream-50 border border-cream-300 text-xs text-forest-900 focus:outline-none focus:ring-2 focus:ring-forest-600"
+                            required
+                            value={emailSubject}
+                            onChange={(e) => setEmailSubject(e.target.value)}
+                            className="w-full px-3.5 py-2 rounded-xl bg-cream-50 border border-cream-300 text-xs font-semibold text-forest-900 focus:outline-none focus:ring-2 focus:ring-forest-600"
                           />
                         </div>
-                      </div>
 
-                      <div>
-                        <label className="block text-xs font-bold text-forest-900 mb-1">
-                          Subject Line *
-                        </label>
-                        <input
-                          type="text"
-                          required
-                          value={emailSubject}
-                          onChange={(e) => setEmailSubject(e.target.value)}
-                          className="w-full px-3.5 py-2 rounded-xl bg-cream-50 border border-cream-300 text-xs font-semibold text-forest-900 focus:outline-none focus:ring-2 focus:ring-forest-600"
-                        />
-                      </div>
+                        <div>
+                          <label className="block text-xs font-bold text-forest-900 mb-1">
+                            Message Body *
+                          </label>
+                          <textarea
+                            rows={8}
+                            required
+                            value={emailMessage}
+                            onChange={(e) => setEmailMessage(e.target.value)}
+                            className="w-full px-3.5 py-2 rounded-xl bg-cream-50 border border-cream-300 text-xs text-forest-900 leading-relaxed font-sans focus:outline-none focus:ring-2 focus:ring-forest-600"
+                          />
+                        </div>
 
-                      <div>
-                        <label className="block text-xs font-bold text-forest-900 mb-1">
-                          Message Body *
-                        </label>
-                        <textarea
-                          rows={7}
-                          required
-                          value={emailMessage}
-                          onChange={(e) => setEmailMessage(e.target.value)}
-                          className="w-full px-3.5 py-2 rounded-xl bg-cream-50 border border-cream-300 text-xs text-forest-900 leading-relaxed font-sans focus:outline-none focus:ring-2 focus:ring-forest-600"
-                        />
-                      </div>
+                        <div className="pt-1 flex items-center justify-between">
+                          <p className="text-[11px] text-forest-700/60">
+                            Dispatched via Resend with sanctuary template.
+                          </p>
+                          <button
+                            type="submit"
+                            disabled={isSendingEmail}
+                            className="inline-flex items-center gap-2 px-6 py-2.5 rounded-full bg-forest-850 text-cream-50 font-bold text-xs uppercase tracking-wider hover:bg-forest-900 cursor-pointer shadow-xs disabled:opacity-50"
+                          >
+                            <Send className="w-3.5 h-3.5" />
+                            <span>{isSendingEmail ? "Sending..." : "Dispatch Email"}</span>
+                          </button>
+                        </div>
+                      </form>
+                    </div>
 
-                      <div className="pt-1 flex items-center justify-between">
-                        <p className="text-[11px] text-forest-700/60">
-                          Dispatched via Resend with sanctuary template.
+                    {/* Quick Tips & Recent Sent preview */}
+                    <div className="lg:col-span-4 space-y-4">
+                      <div className="bg-cream-50 rounded-2xl border border-cream-300 p-5 space-y-2.5">
+                        <h4 className="text-xs font-bold uppercase tracking-wider text-forest-900 flex items-center gap-1.5">
+                          <Sparkles className="w-3.5 h-3.5 text-forest-700" />
+                          <span>Dispatching Tips</span>
+                        </h4>
+                        <p className="text-xs text-forest-700/80 leading-relaxed">
+                          • Emails are branded with Feathered Haven’s official headers and sent from <code className="font-mono text-[11px] bg-white px-1.5 py-0.5 rounded border border-cream-300">adoptions@fhpra.org</code>.
                         </p>
-                        <button
-                          type="submit"
-                          disabled={isSendingEmail}
-                          className="inline-flex items-center gap-2 px-6 py-2.5 rounded-full bg-forest-850 text-cream-50 font-bold text-xs uppercase tracking-wider hover:bg-forest-900 cursor-pointer shadow-xs disabled:opacity-50"
-                        >
-                          <Send className="w-3.5 h-3.5" />
-                          <span>{isSendingEmail ? "Sending..." : "Send Email"}</span>
-                        </button>
+                        <p className="text-xs text-forest-700/80 leading-relaxed">
+                          • Replying to an inquiry automatically logs a record in your Sent History.
+                        </p>
                       </div>
-                    </form>
-                  </div>
 
-                  {/* Sent Logs */}
-                  <div className="lg:col-span-5 bg-white rounded-2xl border border-cream-300 p-5 shadow-xs space-y-3">
-                    <div className="flex items-center justify-between border-b border-cream-200 pb-2">
-                      <h4 className="text-xs font-bold uppercase tracking-wider text-forest-900">
-                        Sent Logs ({emails.length})
-                      </h4>
+                      <div className="bg-white rounded-2xl border border-cream-300 p-5 shadow-xs space-y-3">
+                        <div className="flex items-center justify-between border-b border-cream-200 pb-2">
+                          <h4 className="text-xs font-bold uppercase tracking-wider text-forest-900">
+                            Recent Sent ({emails.slice(0, 3).length})
+                          </h4>
+                          <button
+                            onClick={() => setEmailViewMode("sent")}
+                            className="text-xs text-forest-700 hover:text-forest-950 font-semibold cursor-pointer"
+                          >
+                            View All &rarr;
+                          </button>
+                        </div>
+
+                        <div className="space-y-2">
+                          {emails.slice(0, 3).map((m) => (
+                            <div key={m.id} className="p-2.5 rounded-xl bg-cream-50 border border-cream-200 text-xs space-y-1">
+                              <div className="flex justify-between items-center">
+                                <span className="font-bold text-forest-900 truncate max-w-[130px]">
+                                  {m.recipientName || m.recipientEmail}
+                                </span>
+                                <span className="text-[10px] text-forest-600">
+                                  {new Date(m.sentAt).toLocaleDateString()}
+                                </span>
+                              </div>
+                              <p className="text-[11px] text-forest-700 truncate">{m.subject}</p>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* SUB-VIEW 3: SENT EMAIL HISTORY */}
+                {emailViewMode === "sent" && (
+                  <div className="bg-white rounded-2xl border border-cream-300 p-5 shadow-xs space-y-4">
+                    <div className="flex items-center justify-between border-b border-cream-200 pb-3">
+                      <div>
+                        <h4 className="text-sm font-bold text-forest-900">
+                          Sent Email History ({emails.length})
+                        </h4>
+                        <p className="text-xs text-forest-700/70">
+                          Complete audit trail of all messages sent from the administrator portal.
+                        </p>
+                      </div>
+
                       <button
                         onClick={async () => {
                           const res = await fetch("/api/admin/send-email");
                           if (res.ok) setEmails(await res.json());
                         }}
-                        className="text-xs text-forest-700 hover:text-forest-900 cursor-pointer"
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-cream-100 hover:bg-cream-200 text-forest-800 text-xs font-semibold border border-cream-300 transition-colors cursor-pointer"
                       >
                         <RefreshCw className="w-3.5 h-3.5" />
+                        <span>Refresh Logs</span>
                       </button>
                     </div>
 
-                    <div className="space-y-2.5 max-h-[500px] overflow-y-auto pr-1">
+                    <div className="space-y-2.5 max-h-[600px] overflow-y-auto pr-1">
                       {emails.length === 0 ? (
-                        <p className="text-xs text-forest-700/60 text-center py-6">
+                        <p className="text-xs text-forest-700/60 text-center py-10">
                           No sent emails logged yet.
                         </p>
                       ) : (
                         emails.map((mail) => (
                           <div
                             key={mail.id}
-                            className="bg-cream-50 p-3 rounded-xl border border-cream-200 space-y-1.5 text-xs"
+                            className="bg-cream-50 p-4 rounded-xl border border-cream-200 space-y-1.5 text-xs hover:border-cream-300 transition-colors"
                           >
                             <div className="flex items-center justify-between">
-                              <span className="font-bold text-forest-900 truncate max-w-[150px]">
-                                {mail.recipientName || mail.recipientEmail}
+                              <span className="font-bold text-forest-900">
+                                To: {mail.recipientName ? `${mail.recipientName} (${mail.recipientEmail})` : mail.recipientEmail}
                               </span>
                               <span
-                                className={`text-[10px] px-2 py-0.5 rounded font-bold ${
+                                className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${
                                   mail.status === "Delivered" || mail.status === "Sent"
                                     ? "bg-emerald-100 text-emerald-800"
                                     : "bg-amber-100 text-amber-800"
@@ -1353,20 +1851,20 @@ export default function AdminPage() {
                               </span>
                             </div>
 
-                            <p className="font-semibold text-forest-850 truncate">{mail.subject}</p>
-                            <p className="text-forest-700/80 text-[11px] line-clamp-2">
+                            <p className="font-bold text-forest-850">{mail.subject}</p>
+                            <p className="text-forest-700/80 text-[11px] whitespace-pre-wrap leading-relaxed bg-white/60 p-2.5 rounded-lg border border-cream-200">
                               {mail.message}
                             </p>
                             <div className="text-[10px] text-forest-600/70 flex justify-between pt-1">
-                              <span>{mail.templateUsed || "Custom"}</span>
-                              <span>{new Date(mail.sentAt).toLocaleDateString()}</span>
+                              <span>Template: {mail.templateUsed || "Custom"}</span>
+                              <span>{new Date(mail.sentAt).toLocaleString()}</span>
                             </div>
                           </div>
                         ))
                       )}
                     </div>
                   </div>
-                </div>
+                )}
               </div>
             )}
           </div>
@@ -1730,6 +2228,130 @@ export default function AdminPage() {
                 title={pdfPreview.fileName}
                 className="w-full h-full border-0"
               />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL 4: RECEIVED EMAIL VIEWER & QUICK REPLY */}
+      {selectedReceivedEmail && (
+        <div className="fixed inset-0 z-50 bg-forest-950/70 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
+          <div className="bg-white rounded-3xl border border-cream-300 max-w-2xl w-full p-6 sm:p-8 space-y-6 shadow-2xl my-6">
+            {/* Header */}
+            <div className="flex items-start justify-between border-b border-cream-200 pb-4">
+              <div className="space-y-1">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="px-2.5 py-0.5 rounded-full bg-forest-100 text-forest-800 text-[11px] font-bold">
+                    {selectedReceivedEmail.source}
+                  </span>
+                  {selectedReceivedEmail.category && (
+                    <span className="px-2.5 py-0.5 rounded-full bg-cream-200 text-forest-700 text-[11px] font-medium">
+                      {selectedReceivedEmail.category}
+                    </span>
+                  )}
+                  {selectedReceivedEmail.status === "Unread" ? (
+                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 text-[11px] font-bold">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 animate-pulse" />
+                      <span>Unread Message</span>
+                    </span>
+                  ) : (
+                    <span className="px-2.5 py-0.5 rounded-full bg-cream-100 text-forest-600 text-[11px] font-medium border border-cream-200">
+                      Status: {selectedReceivedEmail.status}
+                    </span>
+                  )}
+                </div>
+
+                <h3 className="text-lg sm:text-xl font-black text-forest-900 tracking-tight mt-1">
+                  {selectedReceivedEmail.subject}
+                </h3>
+              </div>
+
+              <button
+                onClick={() => setSelectedReceivedEmail(null)}
+                className="p-1 rounded-full text-forest-700 hover:text-forest-950 hover:bg-cream-100 transition-colors cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Sender Info Card */}
+            <div className="bg-cream-50 p-4 rounded-2xl border border-cream-200 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 text-xs">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-forest-850 text-cream-50 flex items-center justify-center font-black text-sm shrink-0">
+                  {selectedReceivedEmail.fromName
+                    ? selectedReceivedEmail.fromName.substring(0, 2).toUpperCase()
+                    : selectedReceivedEmail.fromEmail.substring(0, 2).toUpperCase()}
+                </div>
+                <div>
+                  <p className="font-bold text-forest-900 text-sm">
+                    {selectedReceivedEmail.fromName || "Website Guest"}
+                  </p>
+                  <p className="text-forest-700 font-mono text-[11px]">
+                    {selectedReceivedEmail.fromEmail}
+                  </p>
+                </div>
+              </div>
+
+              <div className="text-forest-600 text-[11px] sm:text-right">
+                <p>To: {selectedReceivedEmail.toEmail || "adoptions@fhpra.org"}</p>
+                <p className="mt-0.5">{new Date(selectedReceivedEmail.receivedAt).toLocaleString()}</p>
+              </div>
+            </div>
+
+            {/* Message Body */}
+            <div className="space-y-2">
+              <p className="text-xs font-bold uppercase tracking-wider text-forest-700">
+                Message Content
+              </p>
+              <div className="p-4 sm:p-5 rounded-2xl bg-cream-50/60 border border-cream-200 text-xs sm:text-sm text-forest-900 leading-relaxed font-sans whitespace-pre-wrap max-h-80 overflow-y-auto">
+                {selectedReceivedEmail.message}
+              </div>
+            </div>
+
+            {/* Action Buttons */}
+            <div className="pt-3 border-t border-cream-200 flex flex-wrap items-center justify-between gap-3">
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() =>
+                    handleMarkEmailStatus(
+                      selectedReceivedEmail.id,
+                      selectedReceivedEmail.status === "Unread" ? "Read" : "Unread"
+                    )
+                  }
+                  className="px-3.5 py-2 rounded-xl bg-cream-100 hover:bg-cream-200 text-forest-850 font-bold text-xs border border-cream-300 transition-colors cursor-pointer"
+                >
+                  {selectedReceivedEmail.status === "Unread" ? "Mark as Read" : "Mark as Unread"}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => handleDeleteReceivedEmail(selectedReceivedEmail.id)}
+                  className="p-2 rounded-xl text-rose-700 hover:bg-rose-50 transition-colors cursor-pointer"
+                  title="Delete Message"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </button>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setSelectedReceivedEmail(null)}
+                  className="px-4 py-2 rounded-full bg-cream-200 hover:bg-cream-300 text-forest-900 font-bold cursor-pointer text-xs"
+                >
+                  Close
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => handleReplyToReceivedEmail(selectedReceivedEmail)}
+                  className="inline-flex items-center gap-1.5 px-5 py-2 rounded-full bg-forest-850 text-cream-50 font-bold uppercase tracking-wider hover:bg-forest-900 cursor-pointer text-xs shadow-xs"
+                >
+                  <Reply className="w-3.5 h-3.5" />
+                  <span>Reply via Email</span>
+                </button>
+              </div>
             </div>
           </div>
         </div>
