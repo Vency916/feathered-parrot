@@ -269,33 +269,18 @@ export default function SupportAndContactSection({ onOpenInquiry }: SupportAndCo
                   </div>
                 </div>
 
-                {/* Optional Phone and Notes */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-                  <div>
-                    <label className="block text-xs font-bold text-forest-900 mb-1">
-                      Phone number (optional)
-                    </label>
-                    <input
-                      type="tel"
-                      value={phoneNumber}
-                      onChange={(e) => setPhoneNumber(e.target.value)}
-                      placeholder="(555) 000-0000"
-                      className="w-full px-4 py-2.5 rounded-xl bg-cream-50 border border-cream-300 text-xs sm:text-sm text-forest-900 focus:outline-none focus:ring-2 focus:ring-forest-600 focus:bg-white"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-bold text-forest-900 mb-1">
-                      Cage / housing description
-                    </label>
-                    <input
-                      type="text"
-                      value={notes}
-                      onChange={(e) => setNotes(e.target.value)}
-                      placeholder="Aviary dimensions, out-of-cage time, other pets"
-                      className="w-full px-4 py-2.5 rounded-xl bg-cream-50 border border-cream-300 text-xs sm:text-sm text-forest-900 focus:outline-none focus:ring-2 focus:ring-forest-600 focus:bg-white"
-                    />
-                  </div>
+                {/* Optional Phone */}
+                <div>
+                  <label className="block text-xs font-bold text-forest-900 mb-1">
+                    Phone number (optional)
+                  </label>
+                  <input
+                    type="tel"
+                    value={phoneNumber}
+                    onChange={(e) => setPhoneNumber(e.target.value)}
+                    placeholder="(555) 000-0000"
+                    className="w-full px-4 py-2.5 rounded-xl bg-cream-50 border border-cream-300 text-xs sm:text-sm text-forest-900 focus:outline-none focus:ring-2 focus:ring-forest-600 focus:bg-white"
+                  />
                 </div>
 
                 {/* Form Download & Upload Sub-block */}
